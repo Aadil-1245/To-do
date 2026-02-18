@@ -63,6 +63,9 @@ async def update_status(db: AsyncSession, status_id: int, status_update: StatusU
         )
 
 async def get_project_statuses(db: AsyncSession, project_id: int, current_user: User):
+    from sqlalchemy import select
+    from app.models.project_member import ProjectMember
+    
     project = await project_crud.get_project_by_id(db, project_id)
     
     if not project:
@@ -71,7 +74,15 @@ async def get_project_statuses(db: AsyncSession, project_id: int, current_user: 
             detail="Project not found"
         )
     
-    if project.owner_id != current_user.id:
+    # Check if user is project owner or team member
+    is_member = await db.execute(
+        select(ProjectMember).where(
+            ProjectMember.project_id == project_id,
+            ProjectMember.user_id == current_user.id
+        )
+    )
+    
+    if project.owner_id != current_user.id and not is_member.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this project"
