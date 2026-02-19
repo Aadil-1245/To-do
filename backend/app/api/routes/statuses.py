@@ -33,11 +33,3 @@ async def get_project_statuses(
     current_user: User = Depends(get_current_user)
 ):
     return await status_service.get_project_statuses(db, project_id, current_user)
-
-@router.delete("/{status_id}")
-async def delete_status(
-    status_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    return await status_service.delete_status(db, status_id, current_user)

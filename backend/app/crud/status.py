@@ -31,10 +31,3 @@ async def update_status_name(db: AsyncSession, status: Status, name: str):
     await db.flush()
     await db.refresh(status)
     return status
-async def delete_status(db: AsyncSession, status_id: int):
-    result = await db.execute(select(Status).where(Status.id == status_id))
-    status = result.scalar_one_or_none()
-    if status:
-        await db.delete(status)
-        await db.flush()
-    return status

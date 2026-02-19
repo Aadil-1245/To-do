@@ -20,13 +20,13 @@ app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://taskhive-backend-6u04.onrender.com"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(auth.router , prefix="/auth")
+app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(statuses.router)
 app.include_router(tasks.router)
