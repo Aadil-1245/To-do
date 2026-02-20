@@ -4,6 +4,9 @@ from fastapi import HTTPException, status
 from typing import List
 from uuid import uuid4
 from app.crud import project as project_crud, status as status_crud, notification as notification_crud
+import logging
+
+logger = logging.getLogger(__name__)
 from app.schemas.project import ProjectCreate
 from app.schemas.status import StatusCreate
 from app.schemas.notification import NotificationCreate
@@ -38,6 +41,7 @@ async def create_project(db: AsyncSession, project: ProjectCreate, current_user:
         return db_project
     except Exception as e:
         await db.rollback()
+        logger.exception("Project creation failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
