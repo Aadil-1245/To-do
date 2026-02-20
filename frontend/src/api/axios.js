@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'https://taskhive-backend-6uo4.onrender.com/'
+  baseURL: 'http://localhost:8000'
 })
 
 // Add request interceptor to include token in every request

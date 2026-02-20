@@ -8,6 +8,10 @@ const KanbanBoard = () => {
   const [board, setBoard] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [showCommentsModal, setShowCommentsModal] = useState(false)
+  const [showColumnModal, setShowColumnModal] = useState(false)
+  const [showEditColumnModal, setShowEditColumnModal] = useState(false)
+  const [editingColumnId, setEditingColumnId] = useState(null)
+  const [editingColumnName, setEditingColumnName] = useState('')
   const [selectedTask, setSelectedTask] = useState(null)
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
@@ -18,6 +22,7 @@ const KanbanBoard = () => {
   const [teamMembers, setTeamMembers] = useState([])
   const [currentUserId, setCurrentUserId] = useState(null)
   const [userRole, setUserRole] = useState(null)
+  const [newColumnName, setNewColumnName] = useState('')
   const { projectId } = useParams()
   const navigate = useNavigate()
 
@@ -25,6 +30,7 @@ const KanbanBoard = () => {
     fetchBoard()
     fetchTeamMembers()
   }, [projectId])
+
 
   const fetchBoard = async () => {
     try {
@@ -67,6 +73,91 @@ const KanbanBoard = () => {
       setTeamMembers(response.data || [])
     } catch (err) {
       console.error('Failed to fetch team members:', err)
+    }
+  }
+
+  const createColumn = async (e) => {
+    e.preventDefault()
+    if (!newColumnName.trim()) {
+      alert('Please enter a column name')
+      return
+    }
+
+    try {
+      const response = await api.post('/statuses', {
+        name: newColumnName,
+        position: crypto.randomUUID(),
+        project_id: parseInt(projectId)
+      })
+      console.log('✅ Column created:', response.data)
+      
+      // Add new column to board
+      const newColumn = {
+        status_id: response.data.id,
+        status_name: response.data.name,
+        user_role: userRole,
+        current_user_id: currentUserId,
+        tasks: []
+      }
+      setBoard([...board, newColumn])
+      setNewColumnName('')
+      setShowColumnModal(false)
+      alert('Column created successfully!')
+    } catch (err) {
+      console.error('Failed to create column:', err)
+      alert('Failed to create column: ' + (err.response?.data?.detail || err.message))
+    }
+  }
+
+  const deleteColumn = async (statusId) => {
+    if (!window.confirm('Are you sure you want to delete this column? All tasks in this column will be unaffected.')) {
+      return
+    }
+
+    try {
+      await api.delete(`/statuses/${statusId}`)
+      console.log('✅ Column deleted successfully')
+      setBoard(board.filter(col => col.status_id !== statusId))
+      alert('Column deleted successfully!')
+    } catch (err) {
+      console.error('Failed to delete column:', err)
+      alert('Failed to delete column: ' + (err.response?.data?.detail || err.message))
+    }
+  }
+
+  const openEditColumnModal = (statusId, statusName) => {
+    setEditingColumnId(statusId)
+    setEditingColumnName(statusName)
+    setShowEditColumnModal(true)
+  }
+
+  const editColumn = async (e) => {
+    e.preventDefault()
+    if (!editingColumnName.trim()) {
+      alert('Please enter a column name')
+      return
+    }
+
+    try {
+      await api.patch(`/statuses/${editingColumnId}`, {
+        name: editingColumnName
+      })
+      console.log('✅ Column updated successfully')
+      
+      // Update board state
+      setBoard(board.map(col => 
+        col.status_id === editingColumnId 
+          ? { ...col, status_name: editingColumnName }
+          : col
+      ))
+      
+      setShowEditColumnModal(false)
+      setEditingColumnId(null)
+      setEditingColumnName('')
+      alert('Column updated successfully!')
+    } catch (err) {
+      console.error('Failed to update column:', err)
+      alert('Failed to update column: ' + (err.response?.data?.detail || err.message))
     }
   }
 
@@ -209,9 +300,14 @@ const KanbanBoard = () => {
         <div className="navbar-actions">
           <NotificationBell />
           {userRole === 'leader' && (
-            <button className="btn add-task" onClick={() => setShowModal(true)} style={{marginRight: '10px', width: 'auto'}}>
-              + Add Task
-            </button>
+            <>
+              <button className="btn add-task" onClick={() => setShowModal(true)} style={{marginRight: '10px', width: 'auto'}}>
+                + Add Task
+              </button>
+              <button className="btn add-task" onClick={() => setShowColumnModal(true)} style={{marginRight: '10px', width: 'auto', background: '#8b5cf6'}}>
+                + Add Column
+              </button>
+            </>
           )}
           <button onClick={() => navigate('/dashboard')} style={{width: 'auto'}}>Back to Dashboard</button>
         </div>
@@ -234,6 +330,41 @@ const KanbanBoard = () => {
                   >
                     <h3>{column.status_name}</h3>
                     
+                    {userRole === 'leader' && (
+                      <div style={{display: 'flex', gap: '5px', marginBottom: '10px'}}>
+                        <button 
+                          onClick={() => openEditColumnModal(column.status_id, column.status_name)}
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            background: '#3b82f6',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button 
+                          onClick={() => deleteColumn(column.status_id)}
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            background: '#ef4444',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    )}
+
                     {column.tasks.map((task, index) => (
                       <Draggable
                         key={task.id}
@@ -403,6 +534,58 @@ const KanbanBoard = () => {
                 <button type="submit" className="btn">Add Comment</button>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Column Modal */}
+      {showColumnModal && (
+        <div className="modal" onClick={() => setShowColumnModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>Create New Column</h2>
+            <form onSubmit={createColumn}>
+              <div className="form-group">
+                <label>Column Name</label>
+                <input
+                  type="text"
+                  value={newColumnName}
+                  onChange={(e) => setNewColumnName(e.target.value)}
+                  placeholder="e.g., Review, Testing, etc."
+                  required
+                  autoFocus
+                />
+              </div>
+              <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end'}}>
+                <button type="button" className="btn" onClick={() => {setShowColumnModal(false); setNewColumnName('')}} style={{background: '#6b7280'}}>Cancel</button>
+                <button type="submit" className="btn" style={{background: '#8b5cf6'}}>Create Column</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Column Modal */}
+      {showEditColumnModal && (
+        <div className="modal" onClick={() => setShowEditColumnModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>Edit Column</h2>
+            <form onSubmit={editColumn}>
+              <div className="form-group">
+                <label>Column Name</label>
+                <input
+                  type="text"
+                  value={editingColumnName}
+                  onChange={(e) => setEditingColumnName(e.target.value)}
+                  placeholder="Enter new column name"
+                  required
+                  autoFocus
+                />
+              </div>
+              <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end'}}>
+                <button type="button" className="btn" onClick={() => {setShowEditColumnModal(false); setEditingColumnName('')}} style={{background: '#6b7280'}}>Cancel</button>
+                <button type="submit" className="btn" style={{background: '#3b82f6'}}>Update Column</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
