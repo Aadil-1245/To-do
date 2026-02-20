@@ -20,7 +20,7 @@ app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://to-do-84cj.vercel.app"],
+    allow_origins=["https://to-do-84cj.vercel.app","https://to-do-pja8.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
